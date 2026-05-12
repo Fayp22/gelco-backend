@@ -8,3 +8,14 @@
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
+# Seguridad
+.env
+
+# Carpetas de compilación (Basura que no debe subirse)
+target/
+out/
+build/
+
+# Configuración de IntelliJ
+.idea/
+*.iml
