@@ -3,6 +3,7 @@ package com.gelco.controller;
 import com.gelco.dto.ErrorResponse;
 import com.gelco.model.Usuario;
 import com.gelco.repository.UsuarioRepository;
+import com.gelco.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,11 +18,14 @@ import java.util.Map;
 public class UsuarioController {
 
     private final UsuarioRepository usuarioRepository;
+    private final JwtUtil jwtUtil;
 
     record UpdateUsuarioRequest(String nombre) {}
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateUsuario(@PathVariable Long id, @RequestBody UpdateUsuarioRequest request) {
+    public ResponseEntity<?> updateUsuario(
+            @PathVariable Long id,
+            @RequestBody UpdateUsuarioRequest request) {
         try {
             Usuario usuario = usuarioRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
@@ -32,17 +36,26 @@ public class UsuarioController {
 
             usuarioRepository.save(usuario);
 
+            // Generar nuevo token con el nombre actualizado
+            String nuevoToken = jwtUtil.generateToken(
+                    usuario.getEmail(),
+                    usuario.getNombre(),
+                    usuario.getPerfil().getNombre(),
+                    usuario.getId()
+            );
+
             return ResponseEntity.ok(Map.of(
                     "id", usuario.getId(),
                     "nombre", usuario.getNombre(),
-                    "email", usuario.getEmail()
+                    "email", usuario.getEmail(),
+                    "token", nuevoToken
             ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ErrorResponse(404, "Usuario no encontrado", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            Remove-Item -Recurse -Force .git.body(new ErrorResponse(500, "Error al actualizar usuario", e.getMessage()));
+                    .body(new ErrorResponse(500, "Error al actualizar usuario", e.getMessage()));
         }
     }
 }

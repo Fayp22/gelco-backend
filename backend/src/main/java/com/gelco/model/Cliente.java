@@ -15,16 +15,16 @@ public class Cliente {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
-    @Column(nullable = false, length = 150)
+
+    @Column(nullable = false, length = 200)
     private String nombre;
-    
-    @Column(length = 20)
+
+    @Column(length = 40)
     private String telefono;
-    
-    @Column(length = 255)
+
+    @Column(length = 300)
     private String direccion;
-    
-    @Column(length = 500)
+
+    @Column(columnDefinition = "nvarchar(MAX)")
     private String preferencias;
 }
