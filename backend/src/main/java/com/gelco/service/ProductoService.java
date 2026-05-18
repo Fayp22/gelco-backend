@@ -38,6 +38,17 @@ public class ProductoService {
         }
     }
 
+    public List<ProductoResponse> buscarProductosActivosPorNombre(String nombre) {
+        try {
+            return productoRepository.findByNombreContainingIgnoreCaseAndActivoTrue(nombre)
+                    .stream()
+                    .map(ProductoResponse::fromEntity)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Error al buscar productos por nombre: " + e.getMessage());
+        }
+    }
+
     public ProductoResponse getProductoById(Long id) {
         try {
             Producto producto = productoRepository.findById(id)
@@ -50,13 +61,15 @@ public class ProductoService {
         }
     }
 
-    public ProductoResponse createProducto(String nombre, String descripcion, BigDecimal precio, Integer stock) {
+    // MODIFICADO: Ahora acepta imagenUrl
+    public ProductoResponse createProducto(String nombre, String descripcion, BigDecimal precio, Integer stock, String imagenUrl) {
         try {
             Producto producto = new Producto();
             producto.setNombre(nombre);
             producto.setDescripcion(descripcion);
             producto.setPrecio(precio);
             producto.setStock(stock);
+            producto.setImagenUrl(imagenUrl); // <--- AÑADIDO AQUÍ
             producto.setActivo(true);
 
             Producto savedProducto = productoRepository.save(producto);
@@ -66,7 +79,8 @@ public class ProductoService {
         }
     }
 
-    public ProductoResponse updateProducto(Long id, String nombre, String descripcion, BigDecimal precio, Integer stock, boolean activo) {
+    // MODIFICADO: Ahora acepta imagenUrl
+    public ProductoResponse updateProducto(Long id, String nombre, String descripcion, BigDecimal precio, Integer stock, boolean activo, String imagenUrl) {
         try {
             Producto producto = productoRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
@@ -75,6 +89,7 @@ public class ProductoService {
             if (descripcion != null) producto.setDescripcion(descripcion);
             if (precio != null) producto.setPrecio(precio);
             if (stock != null) producto.setStock(stock);
+            if (imagenUrl != null) producto.setImagenUrl(imagenUrl); // <--- AÑADIDO AQUÍ
             producto.setActivo(activo);
 
             Producto updatedProducto = productoRepository.save(producto);
