@@ -50,8 +50,12 @@ public class ClienteService {
         Map<String, Object> result = new HashMap<>();
         result.put("cliente", cliente);
         result.put("totalPedidos", pedidoRepository.countByClienteId(clienteId));
-        result.put("tienePendiente", pedidoRepository
-                .existsByClienteIdAndEstado(clienteId, "Pendiente"));
+
+        // CORRECCIÓN: Los estados reales de deuda son "En proceso" y "En camino"
+        boolean tienePendiente = pedidoRepository.existsByClienteIdAndEstado(clienteId, "En proceso") ||
+                pedidoRepository.existsByClienteIdAndEstado(clienteId, "En camino");
+
+        result.put("tienePendiente", tienePendiente);
         return result;
     }
 
@@ -64,8 +68,12 @@ public class ClienteService {
             map.put("direccion", c.getDireccion());
             map.put("preferencias", c.getPreferencias());
             map.put("totalPedidos", pedidoRepository.countByClienteId(c.getId()));
-            map.put("tienePendiente", pedidoRepository
-                    .existsByClienteIdAndEstado(c.getId(), "Pendiente"));
+
+            // CORRECCIÓN: Los estados reales de deuda son "En proceso" y "En camino"
+            boolean tienePendiente = pedidoRepository.existsByClienteIdAndEstado(c.getId(), "En proceso") ||
+                    pedidoRepository.existsByClienteIdAndEstado(c.getId(), "En camino");
+
+            map.put("tienePendiente", tienePendiente);
             return map;
         }).toList();
     }

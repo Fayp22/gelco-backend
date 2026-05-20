@@ -1,12 +1,15 @@
 package com.gelco.service;
 
+import com.gelco.dto.CrearPedidoRequest;
 import com.gelco.dto.PedidoResponse;
 import com.gelco.model.*;
 import com.gelco.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -14,142 +17,144 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PedidoService {
 
-    private final PedidoRepository pedidoRepository;
-    private final ClienteRepository clienteRepository;
-    private final ConsultoraRepository consultoraRepository;
-    private final DetallePedidoRepository detallePedidoRepository;
-    private final ProductoRepository productoRepository;
+    private final PedidoRepository          pedidoRepository;
+    private final ClienteRepository         clienteRepository;
+    private final ConsultoraRepository      consultoraRepository;
+    private final DetallePedidoRepository   detallePedidoRepository;
+    private final ProductoRepository        productoRepository;
 
+    // ── Listar todos ──────────────────────────────────────────────
     public List<PedidoResponse> getAllPedidos() {
-        try {
-            return pedidoRepository.findAll()
-                    .stream()
-                    .map(PedidoResponse::fromEntity)
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            throw new RuntimeException("Error al obtener pedidos: " + e.getMessage());
-        }
+        return pedidoRepository.findAll().stream()
+                .map(p -> PedidoResponse.fromEntity(p, detallePedidoRepository.findByPedidoId(p.getId())))
+                .collect(Collectors.toList());
     }
 
     public List<PedidoResponse> getPedidosByConsultora(Long consultoraId) {
-        try {
-            return pedidoRepository.findByConsultoraId(consultoraId)
-                    .stream()
-                    .map(PedidoResponse::fromEntity)
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            throw new RuntimeException("Error al obtener pedidos por consultora: " + e.getMessage());
-        }
+        return pedidoRepository.findByConsultoraId(consultoraId).stream()
+                .map(p -> PedidoResponse.fromEntity(p, detallePedidoRepository.findByPedidoId(p.getId())))
+                .collect(Collectors.toList());
     }
 
     public List<PedidoResponse> getPedidosByCliente(Long clienteId) {
-        try {
-            return pedidoRepository.findByClienteId(clienteId)
-                    .stream()
-                    .map(PedidoResponse::fromEntity)
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            throw new RuntimeException("Error al obtener pedidos por cliente: " + e.getMessage());
-        }
+        return pedidoRepository.findByClienteId(clienteId).stream()
+                .map(p -> PedidoResponse.fromEntity(p, detallePedidoRepository.findByPedidoId(p.getId())))
+                .collect(Collectors.toList());
     }
 
     public List<PedidoResponse> getPedidosByEstado(String estado) {
-        try {
-            return pedidoRepository.findByEstado(estado)
-                    .stream()
-                    .map(PedidoResponse::fromEntity)
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            throw new RuntimeException("Error al obtener pedidos por estado: " + e.getMessage());
-        }
+        return pedidoRepository.findByEstado(estado).stream()
+                .map(p -> PedidoResponse.fromEntity(p, detallePedidoRepository.findByPedidoId(p.getId())))
+                .collect(Collectors.toList());
     }
 
     public PedidoResponse getPedidoById(Long id) {
-        try {
-            Pedido pedido = pedidoRepository.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
-            return PedidoResponse.fromEntity(pedido);
-        } catch (IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Error al obtener pedido: " + e.getMessage());
-        }
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado con id: " + id));
+        List<DetallePedido> detalles = detallePedidoRepository.findByPedidoId(id);
+        return PedidoResponse.fromEntity(pedido, detalles);
     }
 
-    public PedidoResponse createPedido(Long clienteId, Long consultoraId, String estado) {
-        try {
-            Cliente cliente = clienteRepository.findById(clienteId)
-                    .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
-            
-            Consultora consultora = consultoraRepository.findById(consultoraId)
-                    .orElseThrow(() -> new IllegalArgumentException("Consultora no encontrada"));
+    // ── Crear pedido completo (HU06) ──────────────────────────────
+    /**
+     * Crea un pedido completo en una sola transacción:
+     * 1. Valida que el cliente exista
+     * 2. Resuelve la consultora a partir del usuarioId del JWT
+     * 3. Valida stock de cada producto ANTES de descontar
+     * 4. Guarda el pedido, los detalles y descuenta el stock
+     * 5. Si algo falla, hace rollback completo
+     */
+    @Transactional
+    public PedidoResponse crearPedidoCompleto(Long usuarioId, CrearPedidoRequest request) {
 
-            Pedido pedido = new Pedido();
-            pedido.setCliente(cliente);
-            pedido.setConsultora(consultora);
-            pedido.setFecha(java.time.LocalDateTime.now());
-            pedido.setEstado(estado != null ? estado : "En proceso");
-            pedido.setTotal(BigDecimal.ZERO);
+        // 1. Resolver consultora por usuario autenticado
+        Consultora consultora = consultoraRepository.findByUsuarioId(usuarioId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No se encontró una consultora asociada al usuario autenticado"));
 
-            Pedido savedPedido = pedidoRepository.save(pedido);
-            return PedidoResponse.fromEntity(savedPedido);
-        } catch (IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Error al crear pedido: " + e.getMessage());
-        }
-    }
+        // 2. Validar cliente
+        Cliente cliente = clienteRepository.findById(request.getClienteId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Cliente no encontrado con id: " + request.getClienteId()));
 
-    public PedidoResponse updatePedidoEstado(Long id, String estado) {
-        try {
-            Pedido pedido = pedidoRepository.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
-            
-            pedido.setEstado(estado);
-            Pedido updatedPedido = pedidoRepository.save(pedido);
-            return PedidoResponse.fromEntity(updatedPedido);
-        } catch (IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Error al actualizar estado del pedido: " + e.getMessage());
-        }
-    }
+        // 3. Cargar y validar productos (ANTES de guardar nada)
+        List<ItemValidado> itemsValidados = request.getItems().stream()
+                .map(item -> {
+                    Producto producto = productoRepository.findById(item.getProductoId())
+                            .orElseThrow(() -> new IllegalArgumentException(
+                                    "Producto no encontrado con id: " + item.getProductoId()));
 
+                    if (!producto.isActivo()) {
+                        throw new IllegalArgumentException(
+                                "El producto '" + producto.getNombre() + "' no está disponible");
+                    }
+                    if (producto.getStock() < item.getCantidad()) {
+                        throw new IllegalArgumentException(
+                                "Stock insuficiente para '" + producto.getNombre() +
+                                        "'. Disponible: " + producto.getStock() +
+                                        ", solicitado: " + item.getCantidad());
+                    }
+                    return new ItemValidado(producto, item.getCantidad());
+                })
+                .collect(Collectors.toList());
 
+        // 4. Calcular total
+        BigDecimal total = itemsValidados.stream()
+                .map(i -> i.producto.getPrecio().multiply(BigDecimal.valueOf(i.cantidad)))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-    public void addDetallePedido(Long pedidoId, Long productoId, Integer cantidad) {
-        try {
-            Pedido pedido = pedidoRepository.findById(pedidoId)
-                    .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
-            Producto producto = productoRepository.findById(productoId)
-                    .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
+        // 5. Guardar pedido
+        Pedido pedido = new Pedido();
+        pedido.setCliente(cliente);
+        pedido.setConsultora(consultora);
+        pedido.setFecha(LocalDateTime.now());
+        pedido.setEstado("En proceso");
+        pedido.setTotal(total);
+        pedidoRepository.save(pedido);
 
+        // 6. Guardar detalles y descontar stock
+        List<DetallePedido> detallesGuardados = itemsValidados.stream().map(item -> {
+            // Descontar stock
+            item.producto.setStock(item.producto.getStock() - item.cantidad);
+            productoRepository.save(item.producto);
+
+            // Guardar detalle
             DetallePedido detalle = new DetallePedido();
             detalle.setPedido(pedido);
-            detalle.setProducto(producto);
-            detalle.setCantidad(cantidad);
-            detalle.setPrecioUnitario(producto.getPrecio());
-            detallePedidoRepository.save(detalle);
+            detalle.setProducto(item.producto);
+            detalle.setCantidad(item.cantidad);
+            detalle.setPrecioUnitario(item.producto.getPrecio());
+            return detallePedidoRepository.save(detalle);
+        }).collect(Collectors.toList());
 
-            BigDecimal nuevoTotal = pedido.getTotal().add(producto.getPrecio().multiply(BigDecimal.valueOf(cantidad)));
-            pedido.setTotal(nuevoTotal);
-            pedidoRepository.save(pedido);
-        } catch (IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Error al agregar detalle del pedido: " + e.getMessage());
-        }
+        return PedidoResponse.fromEntity(pedido, detallesGuardados);
     }
 
+    // ── Actualizar estado ─────────────────────────────────────────
+    @Transactional
+    public PedidoResponse updatePedidoEstado(Long id, String estado) {
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado con id: " + id));
+
+        List<String> estadosValidos = List.of("En proceso", "En camino", "Entregado", "Cancelado");
+        if (!estadosValidos.contains(estado)) {
+            throw new IllegalArgumentException(
+                    "Estado inválido. Valores permitidos: " + estadosValidos);
+        }
+
+        pedido.setEstado(estado);
+        Pedido actualizado = pedidoRepository.save(pedido);
+        return PedidoResponse.fromEntity(actualizado, detallePedidoRepository.findByPedidoId(id));
+    }
+
+    // ── Eliminar pedido ───────────────────────────────────────────
+    @Transactional
     public void deletePedido(Long id) {
-        try {
-            Pedido pedido = pedidoRepository.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
-            pedidoRepository.delete(pedido);
-        } catch (IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Error al eliminar pedido: " + e.getMessage());
-        }
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado con id: " + id));
+        pedidoRepository.delete(pedido);
     }
+
+    // ── Record interno de validación ──────────────────────────────
+    private record ItemValidado(Producto producto, Integer cantidad) {}
 }
