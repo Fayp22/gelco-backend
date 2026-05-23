@@ -3,6 +3,7 @@ package com.gelco.controller;
 import com.gelco.dto.ErrorResponse;
 import com.gelco.model.Usuario;
 import com.gelco.repository.UsuarioRepository;
+import com.gelco.service.AuthService;
 import com.gelco.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,8 +20,11 @@ public class UsuarioController {
 
     private final UsuarioRepository usuarioRepository;
     private final JwtUtil jwtUtil;
+    private final AuthService authService;
 
     record UpdateUsuarioRequest(String nombre) {}
+
+    record ChangePasswordRequest(String currentPassword, String newPassword) {}
 
     @PutMapping("/{id}")
     public ResponseEntity<?> updateUsuario(
@@ -36,7 +40,6 @@ public class UsuarioController {
 
             usuarioRepository.save(usuario);
 
-            // Generar nuevo token con el nombre actualizado
             String nuevoToken = jwtUtil.generateToken(
                     usuario.getEmail(),
                     usuario.getNombre(),
@@ -56,6 +59,22 @@ public class UsuarioController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse(500, "Error al actualizar usuario", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}/password")
+    public ResponseEntity<?> changePassword(
+            @PathVariable Long id,
+            @RequestBody ChangePasswordRequest request) {
+        try {
+            Map<String, Object> response = authService.changePassword(id, request.currentPassword(), request.newPassword());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(400, "Error al cambiar contraseña", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(500, "Error al cambiar contraseña", e.getMessage()));
         }
     }
 }

@@ -10,6 +10,7 @@ import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 public class JwtUtil {
@@ -30,6 +31,7 @@ public class JwtUtil {
         claims.put("nombre", nombre);
         claims.put("perfil", perfil);
         claims.put("usuarioId", usuarioId);
+        claims.put("jti", UUID.randomUUID().toString());
         
         return createToken(claims, email);
     }
@@ -41,6 +43,7 @@ public class JwtUtil {
         return Jwts.builder()
                 .claims(claims)
                 .subject(subject)
+                .id((String) claims.get("jti"))
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey())
@@ -93,5 +96,13 @@ public class JwtUtil {
             return Long.valueOf(usuarioId.toString());
         }
         return null;
+    }
+
+    public String getJtiFromToken(String token) {
+        return getAllClaims(token).getId();
+    }
+
+    public Date getExpirationFromToken(String token) {
+        return getAllClaims(token).getExpiration();
     }
 }

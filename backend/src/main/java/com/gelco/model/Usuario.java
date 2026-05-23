@@ -41,4 +41,7 @@ public class Usuario {
 
     @Column(name = "updated_at", insertable = false)
     private LocalDateTime updatedAt;
+
+    @Column(name = "foto_url", length = 500)
+    private String fotoUrl;
 }

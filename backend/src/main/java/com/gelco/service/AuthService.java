@@ -1,31 +1,65 @@
 package com.gelco.service;
 
 import com.gelco.model.Consultora;
+import com.gelco.model.PasswordResetToken;
 import com.gelco.model.Perfil;
+import com.gelco.model.TokenBlacklist;
 import com.gelco.model.Usuario;
 import com.gelco.repository.ConsultoraRepository;
+import com.gelco.repository.PasswordResetTokenRepository;
 import com.gelco.repository.PerfilRepository;
+import com.gelco.repository.TokenBlacklistRepository;
 import com.gelco.repository.UsuarioRepository;
 import com.gelco.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+
+    private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$");
 
     private final UsuarioRepository usuarioRepository;
     private final PerfilRepository perfilRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final ConsultoraRepository consultoraRepository;
+    private final TokenBlacklistRepository tokenBlacklistRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
 
-    public Map<String, Object> register(String email, String password, String nombre, String perfilNombre) {
+    @Value("${file.upload-dir:./uploads/fotos-perfil}")
+    private String uploadDir;
+
+    public void validatePassword(String password) {
+        if (password == null || password.isBlank()) {
+            throw new IllegalArgumentException("La contraseña no puede estar vacía");
+        }
+        if (!PASSWORD_PATTERN.matcher(password).matches()) {
+            throw new IllegalArgumentException("La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial (@$!%*?&)");
+        }
+    }
+
+    public Map<String, Object> register(String email, String password, String nombre, String perfilNombre,
+                                        String dni, String telefono, String direccion, MultipartFile foto) {
         try {
+            validatePassword(password);
+
             if (usuarioRepository.existsByEmail(email)) {
                 throw new IllegalArgumentException("Email ya registrado");
             }
@@ -39,6 +73,11 @@ public class AuthService {
             usuario.setNombre(nombre);
             usuario.setPerfil(perfil);
             usuario.setEstado(true);
+
+            if (foto != null && !foto.isEmpty()) {
+                String fotoUrl = saveFoto(foto, email);
+                usuario.setFotoUrl(fotoUrl);
+            }
 
             Usuario savedUsuario = usuarioRepository.save(usuario);
 
@@ -54,11 +93,12 @@ public class AuthService {
                     "perfil", perfil.getNombre()
             ));
 
-            // Si es CONSULTORA, crear registro en consultoras
             if ("CONSULTORA".equals(perfilNombre)) {
                 Consultora consultora = new Consultora();
                 consultora.setUsuario(savedUsuario);
-                consultora.setDni("00000000");
+                consultora.setDni(dni != null && !dni.isBlank() ? dni : "00000000");
+                consultora.setTelefono(telefono);
+                consultora.setDireccion(direccion);
                 consultora.setVentasTotales(java.math.BigDecimal.ZERO);
                 consultora.setNivel("Bronce");
                 consultoraRepository.save(consultora);
@@ -70,6 +110,22 @@ public class AuthService {
         } catch (Exception e) {
             throw new RuntimeException("Error al registrar usuario: " + e.getMessage());
         }
+    }
+
+    private String saveFoto(MultipartFile foto, String email) throws IOException {
+        Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
+        Files.createDirectories(uploadPath);
+
+        String originalFilename = foto.getOriginalFilename();
+        String extension = originalFilename != null && originalFilename.contains(".")
+                ? originalFilename.substring(originalFilename.lastIndexOf("."))
+                : ".jpg";
+        String filename = email.replaceAll("[^a-zA-Z0-9]", "_") + "_" + UUID.randomUUID().toString() + extension;
+
+        Path targetPath = uploadPath.resolve(filename);
+        Files.copy(foto.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+
+        return "/uploads/fotos-perfil/" + filename;
     }
 
     public Map<String, Object> login(String email, String password) {
@@ -100,6 +156,146 @@ public class AuthService {
             throw e;
         } catch (Exception e) {
             throw new RuntimeException("Error al iniciar sesión: " + e.getMessage());
+        }
+    }
+
+    public Map<String, Object> logout(String token) {
+        try {
+            String jti = jwtUtil.getJtiFromToken(token);
+            String email = jwtUtil.getUsernameFromToken(token);
+            LocalDateTime expiracion = jwtUtil.getExpirationFromToken(token).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+
+            TokenBlacklist blacklistEntry = TokenBlacklist.builder()
+                    .tokenJti(jti)
+                    .email(email)
+                    .revocadoEn(LocalDateTime.now())
+                    .expiracion(expiracion)
+                    .build();
+
+            tokenBlacklistRepository.save(blacklistEntry);
+
+            return Map.of("message", "Sesión cerrada exitosamente");
+        } catch (Exception e) {
+            throw new RuntimeException("Error al cerrar sesión: " + e.getMessage());
+        }
+    }
+
+    public Map<String, Object> refreshToken(String token) {
+        try {
+            if (!jwtUtil.isTokenValid(token)) {
+                throw new IllegalArgumentException("Token inválido o expirado");
+            }
+
+            String jti = jwtUtil.getJtiFromToken(token);
+            if (tokenBlacklistRepository.existsByTokenJti(jti)) {
+                throw new IllegalArgumentException("Token revocado");
+            }
+
+            String email = jwtUtil.getUsernameFromToken(token);
+            String nombre = jwtUtil.getNombreFromToken(token);
+            String perfil = jwtUtil.getPerfilFromToken(token);
+            Long usuarioId = jwtUtil.getUsuarioIdFromToken(token);
+
+            TokenBlacklist blacklistEntry = TokenBlacklist.builder()
+                    .tokenJti(jti)
+                    .email(email)
+                    .revocadoEn(LocalDateTime.now())
+                    .expiracion(jwtUtil.getExpirationFromToken(token).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime())
+                    .build();
+            tokenBlacklistRepository.save(blacklistEntry);
+
+            String newToken = jwtUtil.generateToken(email, nombre, perfil, usuarioId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", newToken);
+            response.put("message", "Token renovado exitosamente");
+            return response;
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Error al renovar token: " + e.getMessage());
+        }
+    }
+
+    public Map<String, Object> forgotPassword(String email) {
+        try {
+            Usuario usuario = usuarioRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Email no registrado"));
+
+            String resetToken = UUID.randomUUID().toString();
+            LocalDateTime expiracion = LocalDateTime.now().plusHours(1);
+
+            PasswordResetToken tokenEntity = PasswordResetToken.builder()
+                    .token(resetToken)
+                    .usuario(usuario)
+                    .expiracion(expiracion)
+                    .usado(false)
+                    .creadoEn(LocalDateTime.now())
+                    .build();
+
+            passwordResetTokenRepository.save(tokenEntity);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Se ha generado un token de recuperación de contraseña");
+            response.put("resetToken", resetToken);
+            response.put("expiresIn", "1 hora");
+            return response;
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Error al generar token de recuperación: " + e.getMessage());
+        }
+    }
+
+    public Map<String, Object> resetPassword(String token, String newPassword) {
+        try {
+            validatePassword(newPassword);
+
+            PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+                    .orElseThrow(() -> new IllegalArgumentException("Token de recuperación inválido"));
+
+            if (resetToken.getUsado()) {
+                throw new IllegalArgumentException("Token de recuperación ya utilizado");
+            }
+
+            if (resetToken.getExpiracion().isBefore(LocalDateTime.now())) {
+                throw new IllegalArgumentException("Token de recuperación expirado");
+            }
+
+            Usuario usuario = resetToken.getUsuario();
+            usuario.setPasswordHash(passwordEncoder.encode(newPassword));
+            usuarioRepository.save(usuario);
+
+            resetToken.setUsado(true);
+            passwordResetTokenRepository.save(resetToken);
+
+            return Map.of("message", "Contraseña actualizada exitosamente");
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Error al resetear contraseña: " + e.getMessage());
+        }
+    }
+
+    public Map<String, Object> changePassword(Long usuarioId, String currentPassword, String newPassword) {
+        try {
+            validatePassword(newPassword);
+
+            Usuario usuario = usuarioRepository.findById(usuarioId)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+            if (!passwordEncoder.matches(currentPassword, usuario.getPasswordHash())) {
+                throw new IllegalArgumentException("Contraseña actual incorrecta");
+            }
+
+            usuario.setPasswordHash(passwordEncoder.encode(newPassword));
+            usuarioRepository.save(usuario);
+
+            return Map.of("message", "Contraseña actualizada exitosamente");
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Error al cambiar contraseña: " + e.getMessage());
         }
     }
 }

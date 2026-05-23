@@ -2,7 +2,6 @@
 package com.gelco.config;
 
 import com.gelco.security.JwtAuthenticationFilter;
-// Agrega estas 4 importaciones de Swagger:
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -29,7 +28,6 @@ import java.util.Arrays;
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
-// --- AQUÍ AGREGAS LA CONFIGURACIÓN DEL BOTÓN DE SWAGGER ---
 @OpenAPIDefinition(security = {@SecurityRequirement(name = "bearerAuth")})
 @SecurityScheme(
         name = "bearerAuth",
@@ -37,7 +35,6 @@ import java.util.Arrays;
         scheme = "bearer",
         bearerFormat = "JWT"
 )
-// ----------------------------------------------------------
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -69,7 +66,10 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/home/public").permitAll()
+                        .requestMatchers("/api/v1/home").permitAll()
                         .requestMatchers("/api/v1/productos").permitAll()
+                        .requestMatchers("/api/v1/productos/{id}").permitAll()
                         .requestMatchers("/swagger-ui/**").permitAll()
                         .requestMatchers("/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated()

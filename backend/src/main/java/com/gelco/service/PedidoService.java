@@ -24,32 +24,37 @@ public class PedidoService {
     private final ProductoRepository        productoRepository;
 
     // ── Listar todos ──────────────────────────────────────────────
+    @Transactional(readOnly = true)
     public List<PedidoResponse> getAllPedidos() {
-        return pedidoRepository.findAll().stream()
+        return pedidoRepository.findAllWithRelations().stream()
                 .map(p -> PedidoResponse.fromEntity(p, detallePedidoRepository.findByPedidoId(p.getId())))
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<PedidoResponse> getPedidosByConsultora(Long consultoraId) {
         return pedidoRepository.findByConsultoraId(consultoraId).stream()
                 .map(p -> PedidoResponse.fromEntity(p, detallePedidoRepository.findByPedidoId(p.getId())))
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<PedidoResponse> getPedidosByCliente(Long clienteId) {
         return pedidoRepository.findByClienteId(clienteId).stream()
                 .map(p -> PedidoResponse.fromEntity(p, detallePedidoRepository.findByPedidoId(p.getId())))
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<PedidoResponse> getPedidosByEstado(String estado) {
         return pedidoRepository.findByEstado(estado).stream()
                 .map(p -> PedidoResponse.fromEntity(p, detallePedidoRepository.findByPedidoId(p.getId())))
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public PedidoResponse getPedidoById(Long id) {
-        Pedido pedido = pedidoRepository.findById(id)
+        Pedido pedido = pedidoRepository.findByIdWithRelations(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado con id: " + id));
         List<DetallePedido> detalles = detallePedidoRepository.findByPedidoId(id);
         return PedidoResponse.fromEntity(pedido, detalles);

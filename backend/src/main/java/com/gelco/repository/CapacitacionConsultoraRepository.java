@@ -10,4 +10,5 @@ import java.util.List;
 public interface CapacitacionConsultoraRepository extends JpaRepository<CapacitacionConsultora, Long> {
     List<CapacitacionConsultora> findByConsultoraId(Long consultoraId);
     List<CapacitacionConsultora> findByCapacitacionId(Long capacitacionId);
+    long countByConsultoraIdAndCompletado(Long consultoraId, Boolean completado);
 }

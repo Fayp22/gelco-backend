@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface VentaConsultoraRepository extends JpaRepository<VentaConsultora, Long> {
     List<VentaConsultora> findByConsultoraId(Long consultoraId);
+    List<VentaConsultora> findByConsultoraIdAndMesAndAnio(Long consultoraId, Integer mes, Integer anio);
 }
