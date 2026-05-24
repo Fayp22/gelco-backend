@@ -32,4 +32,3 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     long countByConsultoraIdAndEstado(Long consultoraId, String estado);
     long countByEstado(String estado);
 }
-

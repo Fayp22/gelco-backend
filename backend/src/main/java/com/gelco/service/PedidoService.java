@@ -113,7 +113,7 @@ public class PedidoService {
         pedido.setCliente(cliente);
         pedido.setConsultora(consultora);
         pedido.setFecha(LocalDateTime.now());
-        pedido.setEstado("En proceso");
+        pedido.setEstado("Creado");
         pedido.setTotal(total);
         pedidoRepository.save(pedido);
 
@@ -141,7 +141,9 @@ public class PedidoService {
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado con id: " + id));
 
-        List<String> estadosValidos = List.of("En proceso", "En camino", "Entregado", "Cancelado");
+        List<String> estadosValidos = List.of(
+                "Creado", "Enviado a Almacén", "En camino", "Entregado", "Cancelado"
+        );
         if (!estadosValidos.contains(estado)) {
             throw new IllegalArgumentException(
                     "Estado inválido. Valores permitidos: " + estadosValidos);
