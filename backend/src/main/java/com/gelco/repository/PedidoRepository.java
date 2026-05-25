@@ -27,6 +27,9 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     @Query("SELECT p FROM Pedido p JOIN FETCH p.cliente JOIN FETCH p.consultora c JOIN FETCH c.usuario")
     List<Pedido> findAllWithRelations();
 
+    @Query("SELECT p.cliente.id, COUNT(p) FROM Pedido p WHERE p.consultora.id = :consultoraId AND p.estado IN ('Creado', 'Enviado a Almacén', 'En camino') GROUP BY p.cliente.id")
+    List<Object[]> countPendientesByConsultoraIdGroupByCliente(@Param("consultoraId") Long consultoraId);
+
     long countByClienteId(Long clienteId);
     boolean existsByClienteIdAndEstado(Long clienteId, String estado);
     long countByConsultoraIdAndEstado(Long consultoraId, String estado);

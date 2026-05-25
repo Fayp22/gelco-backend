@@ -74,6 +74,12 @@ public class AuthController {
         }
     }
 
+    @GetMapping("/check-email")
+    public ResponseEntity<?> checkEmail(@RequestParam String email) {
+        boolean exists = authService.emailExists(email);
+        return ResponseEntity.ok(Map.of("exists", exists));
+    }
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {

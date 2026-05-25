@@ -27,13 +27,19 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.regex.Pattern;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
-    private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$");
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+
+    public boolean emailExists(String email) {
+        return usuarioRepository.existsByEmail(email);
+    }
 
     private final UsuarioRepository usuarioRepository;
     private final PerfilRepository perfilRepository;
@@ -50,38 +56,69 @@ public class AuthService {
         if (password == null || password.isBlank()) {
             throw new IllegalArgumentException("La contraseña no puede estar vacía");
         }
-        if (!PASSWORD_PATTERN.matcher(password).matches()) {
-            throw new IllegalArgumentException("La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial (@$!%*?&)");
+        if (password.length() < 8) {
+            throw new IllegalArgumentException("La contraseña debe tener al menos 8 caracteres");
+        }
+        if (!password.matches(".*[A-Z].*")) {
+            throw new IllegalArgumentException("La contraseña debe tener al menos una mayúscula");
+        }
+        if (!password.matches(".*\\d.*")) {
+            throw new IllegalArgumentException("La contraseña debe tener al menos un número");
+        }
+        boolean tieneEspecial = false;
+        for (char c : password.toCharArray()) {
+            if (!Character.isLetterOrDigit(c)) { tieneEspecial = true; break; }
+        }
+        if (!tieneEspecial) {
+            throw new IllegalArgumentException("La contraseña debe tener al menos un carácter especial");
         }
     }
 
     public Map<String, Object> register(String email, String password, String nombre, String perfilNombre,
                                         String dni, String telefono, String direccion, MultipartFile foto) {
         try {
+            log.debug("=== REGISTER DEBUG ===");
+            log.debug("email: {}, nombre: {}, perfil: {}", email, nombre, perfilNombre);
+            log.debug("password length: {}", password != null ? password.length() : "null");
+
             validatePassword(password);
+            log.debug("validatePassword PASSED");
 
             if (usuarioRepository.existsByEmail(email)) {
+                log.debug("Email ya existe en BD: {}", email);
                 throw new IllegalArgumentException("Email ya registrado");
             }
+            log.debug("Email no existe, continuando...");
 
             Perfil perfil = perfilRepository.findByNombre(perfilNombre)
-                    .orElseThrow(() -> new IllegalArgumentException("Perfil no encontrado"));
+                    .orElseThrow(() -> {
+                        log.error("Perfil no encontrado: {}", perfilNombre);
+                        return new IllegalArgumentException("Perfil no encontrado");
+                    });
+            log.debug("Perfil encontrado: {}", perfil.getNombre());
 
             Usuario usuario = new Usuario();
             usuario.setEmail(email);
-            usuario.setPasswordHash(passwordEncoder.encode(password));
+            log.debug("Password a encodear (length): {}", password.length());
+            String encodedPw = passwordEncoder.encode(password);
+            log.debug("Password encodeado: {}", encodedPw.substring(0, Math.min(20, encodedPw.length())) + "...");
+            usuario.setPasswordHash(encodedPw);
             usuario.setNombre(nombre);
             usuario.setPerfil(perfil);
             usuario.setEstado(true);
+            log.debug("Usuario entity preparado, guardando...");
 
             if (foto != null && !foto.isEmpty()) {
                 String fotoUrl = saveFoto(foto, email);
+                log.debug("Foto guardada: {}", fotoUrl);
                 usuario.setFotoUrl(fotoUrl);
             }
 
             Usuario savedUsuario = usuarioRepository.save(usuario);
+            log.debug("Usuario guardado con ID: {}", savedUsuario.getId());
 
             String token = jwtUtil.generateToken(savedUsuario.getEmail(), savedUsuario.getNombre(), perfil.getNombre(), savedUsuario.getId());
+            log.debug("Token generado para usuario: {}", savedUsuario.getEmail());
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Usuario registrado exitosamente");
@@ -102,17 +139,21 @@ public class AuthService {
                 consultora.setVentasTotales(java.math.BigDecimal.ZERO);
                 consultora.setNivel("Bronce");
                 consultoraRepository.save(consultora);
+                log.debug("Consultora guardada con ID: {}", consultora.getId());
             }
 
+            log.debug("=== REGISTER SUCCESS ===");
             return response;
         } catch (IllegalArgumentException e) {
+            log.warn("IllegalArgumentException en register: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
+            log.error("Exception en register: {} - {}", e.getClass().getName(), e.getMessage(), e);
             throw new RuntimeException("Error al registrar usuario: " + e.getMessage());
         }
     }
 
-    private String saveFoto(MultipartFile foto, String email) throws IOException {
+    public String saveFoto(MultipartFile foto, String email) throws IOException {
         Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
         Files.createDirectories(uploadPath);
 
