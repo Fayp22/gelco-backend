@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import java.util.List;
 
 import java.io.File;
 import java.io.IOException;
@@ -77,6 +78,10 @@ public class AuthService {
     public Map<String, Object> register(String email, String password, String nombre, String perfilNombre,
                                         String dni, String telefono, String direccion, MultipartFile foto) {
         try {
+            List<String> rolesPermitidos = List.of("CONSULTORA", "DISTRIBUIDOR");
+            if (!rolesPermitidos.contains(perfilNombre)) {
+                throw new IllegalArgumentException("No se puede registrar con ese perfil");
+            }
             log.debug("=== REGISTER DEBUG ===");
             log.debug("email: {}, nombre: {}, perfil: {}", email, nombre, perfilNombre);
             log.debug("password length: {}", password != null ? password.length() : "null");
