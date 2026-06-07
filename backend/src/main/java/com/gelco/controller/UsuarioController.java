@@ -124,4 +124,29 @@ public class UsuarioController {
                     .body(new ErrorResponse(500, "Error al cambiar contraseña", e.getMessage()));
         }
     }
+
+    @PutMapping("/{id}/estado")
+    public ResponseEntity<?> toggleEstado(@PathVariable Long id) {
+        try {
+            Usuario usuario = usuarioRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+            // Tratamos null como true (activo) para evitar NullPointerException
+            boolean estadoActual = usuario.getEstado() != null ? usuario.getEstado() : true;
+            usuario.setEstado(!estadoActual);
+            usuarioRepository.save(usuario);
+
+            return ResponseEntity.ok(Map.of(
+                    "id", usuario.getId(),
+                    "estado", usuario.getEstado(),
+                    "message", usuario.getEstado() ? "Consultora activada" : "Consultora desactivada"
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ErrorResponse(404, "Usuario no encontrado", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(500, "Error al cambiar estado", e.getMessage()));
+        }
+    }
 }
