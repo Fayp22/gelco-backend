@@ -4,6 +4,7 @@ import com.gelco.dto.CapacitacionConsultoraResponse;
 import com.gelco.dto.CapacitacionRequest;
 import com.gelco.dto.CapacitacionResponse;
 import com.gelco.dto.ErrorResponse;
+import com.gelco.dto.EfektividadCapacitacionResponse;
 import com.gelco.dto.PreguntaResponse;
 import com.gelco.model.Consultora;
 import com.gelco.repository.ConsultoraRepository;
@@ -88,6 +89,20 @@ public class CapacitacionController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse(500, "Error al obtener preguntas", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{capacitacionId}/efectividad")
+    public ResponseEntity<?> getEfektividadByCapacitacion(@PathVariable Long capacitacionId) {
+        try {
+            EfektividadCapacitacionResponse efectividad = capacitacionService.getEfektividadByCapacitacion(capacitacionId);
+            return ResponseEntity.ok(efectividad);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ErrorResponse(404, "Capacitación no encontrada", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(500, "Error al obtener efectividad", e.getMessage()));
         }
     }
 

@@ -55,7 +55,7 @@ public class HomeService {
         long capacitacionesCompletadas = capacitacionConsultoraRepository.countByConsultoraIdAndCompletado(consultoraId, true);
 
         LocalDate now = LocalDate.now();
-        List<com.gelco.model.VentaConsultora> ventasMes = ventaConsultoraRepository.findByConsultoraIdAndMesAndAnio(
+        List<com.gelco.model.VentaConsultora> ventasMes = ventaConsultoraRepository.buscarVentasPorConsultoraYMes(
                 consultoraId, now.getMonthValue(), now.getYear());
 
         BigDecimal ventasDelMes = ventasMes.stream()

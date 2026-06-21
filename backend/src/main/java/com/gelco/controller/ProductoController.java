@@ -119,4 +119,48 @@ public class ProductoController {
                     .body(new ErrorResponse(500, "Error al eliminar producto", e.getMessage()));
         }
     }
+
+    @GetMapping("/inventario/resumen")
+    public ResponseEntity<?> getInventarioResumen() {
+        try {
+            ProductoService.InventarioResumen resumen = productoService.getInventarioResumen();
+            return ResponseEntity.ok(resumen);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(500, "Error al obtener resumen de inventario", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/inventario/alertas")
+    public ResponseEntity<?> getProductosStockBajo() {
+        try {
+            List<ProductoResponse> productos = productoService.getProductosStockBajo();
+            return ResponseEntity.ok(productos);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(500, "Error al obtener alertas de inventario", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/renovacion/mas-vendidos")
+    public ResponseEntity<?> getProductosMasVendidos(@RequestParam(defaultValue = "10") Integer limit) {
+        try {
+            var productos = productoService.getProductosMasVendidos(limit);
+            return ResponseEntity.ok(productos);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(500, "Error al obtener productos mas vendidos", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/renovacion/sugerencias")
+    public ResponseEntity<?> getSugerenciasReposicion() {
+        try {
+            var sugerencias = productoService.getSugerenciasReposicionTodos();
+            return ResponseEntity.ok(sugerencias);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(500, "Error al obtener sugerencias de reposicion", e.getMessage()));
+        }
+    }
 }
