@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -27,6 +28,8 @@ public class CapacitacionRequest {
     private String tipo;
 
     private String urlContenido;
+
+    private List<PreguntaRequest> preguntas;
 
     public CapacitacionRequest(String titulo, String descripcion, LocalDateTime fecha,
                               Boolean activo, Integer duracionMinutos, String tipo, String urlContenido) {

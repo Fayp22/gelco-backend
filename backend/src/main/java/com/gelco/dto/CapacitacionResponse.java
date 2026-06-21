@@ -32,6 +32,8 @@ public class CapacitacionResponse {
         r.setDuracionMinutos(capacitacion.getDuracionMinutos());
         r.setTipo(capacitacion.getTipo());
         r.setUrlContenido(capacitacion.getUrlContenido());
+        r.setTotalInscripciones(0);
+        r.setCompletadas(0);
         return r;
     }
 }

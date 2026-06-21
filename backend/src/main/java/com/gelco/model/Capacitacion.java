@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 
 @Entity
@@ -39,4 +41,7 @@ public class Capacitacion {
 
     @Column(name = "url_contenido", length = 500)
     private String urlContenido;
+
+    @OneToMany(mappedBy = "capacitacion", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CapacitacionPregunta> preguntas = new ArrayList<>();
 }
