@@ -20,7 +20,7 @@ public class AuthController {
 
     public record LoginRequest(String email, String password) {}
 
-    public record RegisterRequest(String email, String password, String nombre, String perfil) {}
+    public record RegisterRequest(String email, String password, String nombre, String perfil, String nivel) {}
 
     public record RefreshTokenRequest(String token) {}
 
@@ -38,7 +38,7 @@ public class AuthController {
                     : "CONSULTORA";
             Map<String, Object> response = authService.register(
                     request.email(), request.password(), request.nombre(), perfil,
-                    null, null, null, null);
+                    null, null, null, request.nivel(), null);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -55,6 +55,7 @@ public class AuthController {
             @RequestParam String password,
             @RequestParam String nombre,
             @RequestParam(required = false) String perfil,
+            @RequestParam(required = false) String nivel,
             @RequestParam(required = false) String dni,
             @RequestParam(required = false) String telefono,
             @RequestParam(required = false) String direccion,
@@ -63,7 +64,7 @@ public class AuthController {
             String perfilFinal = (perfil != null && !perfil.isBlank()) ? perfil : "CONSULTORA";
             Map<String, Object> response = authService.register(
                     email, password, nombre, perfilFinal,
-                    dni, telefono, direccion, foto);
+                    dni, telefono, direccion, nivel, foto);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)

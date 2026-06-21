@@ -7,6 +7,7 @@ import com.gelco.repository.ConsultoraRepository;
 import com.gelco.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -55,17 +56,24 @@ public class ConsultoraService {
         }
     }
 
+    @Transactional
     public ConsultoraResponse createConsultora(Long usuarioId, String dni, String direccion, String telefono, String nivel) {
         try {
             Usuario usuario = usuarioRepository.findById(usuarioId)
                     .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+            Consultora existente = consultoraRepository.findByUsuarioId(usuarioId).orElse(null);
+            if (existente != null) {
+                throw new IllegalArgumentException("Este usuario ya tiene una consultora asociada");
+            }
 
             Consultora consultora = new Consultora();
             consultora.setUsuario(usuario);
             consultora.setDni(dni);
             consultora.setDireccion(direccion);
             consultora.setTelefono(telefono);
-            consultora.setNivel(nivel);
+            consultora.setNivel(nivel != null ? nivel : "Bronce");
+            consultora.setVentasTotales(java.math.BigDecimal.ZERO);
 
             Consultora savedConsultora = consultoraRepository.save(consultora);
             return ConsultoraResponse.fromEntity(savedConsultora);
@@ -76,6 +84,7 @@ public class ConsultoraService {
         }
     }
 
+    @Transactional
     public ConsultoraResponse updateConsultora(Long id, String dni, String direccion, String telefono, String nivel) {
         try {
             Consultora consultora = consultoraRepository.findById(id)
@@ -84,7 +93,13 @@ public class ConsultoraService {
             if (dni != null) consultora.setDni(dni);
             if (direccion != null) consultora.setDireccion(direccion);
             if (telefono != null) consultora.setTelefono(telefono);
-            if (nivel != null) consultora.setNivel(nivel);
+            if (nivel != null) {
+                String nivelNormalized = nivel.substring(0, 1).toUpperCase() + nivel.substring(1).toLowerCase();
+                if (!List.of("Bronce", "Plata", "Oro").contains(nivelNormalized)) {
+                    nivelNormalized = "Bronce";
+                }
+                consultora.setNivel(nivelNormalized);
+            }
 
             Consultora updatedConsultora = consultoraRepository.save(consultora);
             return ConsultoraResponse.fromEntity(updatedConsultora);
@@ -95,6 +110,7 @@ public class ConsultoraService {
         }
     }
 
+    @Transactional
     public void deleteConsultora(Long id) {
         try {
             Consultora consultora = consultoraRepository.findById(id)

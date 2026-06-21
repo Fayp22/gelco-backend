@@ -22,6 +22,7 @@ public class ConsultoraResponse {
     private String nivel;
     private BigDecimal ventasTotales;
     private LocalDateTime updatedAt;
+    private LocalDateTime usuarioCreatedAt;
 
     public static ConsultoraResponse fromEntity(Consultora consultora) {
         ConsultoraResponse r = new ConsultoraResponse();
@@ -36,6 +37,7 @@ public class ConsultoraResponse {
         r.setNivel(consultora.getNivel());
         r.setVentasTotales(consultora.getVentasTotales());
         r.setUpdatedAt(consultora.getUpdatedAt());
+        r.setUsuarioCreatedAt(consultora.getUsuario().getCreatedAt());
         return r;
     }
 }

@@ -1,8 +1,11 @@
 package com.gelco.controller;
 
 import com.gelco.dto.CapacitacionConsultoraResponse;
+import com.gelco.dto.CapacitacionRequest;
+import com.gelco.dto.CapacitacionResponse;
 import com.gelco.dto.ErrorResponse;
 import com.gelco.service.CapacitacionService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +22,17 @@ import java.util.Map;
 public class CapacitacionController {
 
     private final CapacitacionService capacitacionService;
+
+    @GetMapping
+    public ResponseEntity<?> getAllCapacitaciones() {
+        try {
+            List<CapacitacionResponse> capacitaciones = capacitacionService.getAllCapacitaciones();
+            return ResponseEntity.ok(capacitaciones);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(500, "Error al obtener capacitaciones", e.getMessage()));
+        }
+    }
 
     @GetMapping("/consultora/{consultoraId}")
     public ResponseEntity<?> getCapacitacionesByConsultora(@PathVariable Long consultoraId) {
@@ -39,6 +53,47 @@ public class CapacitacionController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse(500, "Error al obtener consultoras", e.getMessage()));
+        }
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createCapacitacion(@Valid @RequestBody CapacitacionRequest request) {
+        try {
+            CapacitacionResponse capacitacion = capacitacionService.createCapacitacion(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(capacitacion);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(500, "Error al crear capacitación", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateCapacitacion(
+            @PathVariable Long id,
+            @RequestBody CapacitacionRequest request) {
+        try {
+            CapacitacionResponse capacitacion = capacitacionService.updateCapacitacion(id, request);
+            return ResponseEntity.ok(capacitacion);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ErrorResponse(404, "Capacitación no encontrada", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(500, "Error al actualizar capacitación", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteCapacitacion(@PathVariable Long id) {
+        try {
+            capacitacionService.deleteCapacitacion(id);
+            return ResponseEntity.ok(Map.of("message", "Capacitación eliminada exitosamente"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ErrorResponse(404, "Capacitación no encontrada", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(500, "Error al eliminar capacitación", e.getMessage()));
         }
     }
 
@@ -74,7 +129,7 @@ public class CapacitacionController {
         }
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/inscripcion/{id}")
     public ResponseEntity<?> eliminarInscripcion(@PathVariable Long id) {
         try {
             capacitacionService.deleteCapacitacionConsultora(id);

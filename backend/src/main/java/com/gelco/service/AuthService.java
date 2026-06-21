@@ -76,7 +76,7 @@ public class AuthService {
     }
 
     public Map<String, Object> register(String email, String password, String nombre, String perfilNombre,
-                                        String dni, String telefono, String direccion, MultipartFile foto) {
+                                        String dni, String telefono, String direccion, String nivel, MultipartFile foto) {
         try {
             List<String> rolesPermitidos = List.of("CONSULTORA", "DISTRIBUIDOR");
             if (!rolesPermitidos.contains(perfilNombre)) {
@@ -142,7 +142,12 @@ public class AuthService {
                 consultora.setTelefono(telefono);
                 consultora.setDireccion(direccion);
                 consultora.setVentasTotales(java.math.BigDecimal.ZERO);
-                consultora.setNivel("Bronce");
+                String nivelFinal = (nivel != null && !nivel.isBlank()) ? nivel : "Bronce";
+                nivelFinal = nivelFinal.substring(0, 1).toUpperCase() + nivelFinal.substring(1).toLowerCase();
+                if (!List.of("Bronce", "Plata", "Oro").contains(nivelFinal)) {
+                    nivelFinal = "Bronce";
+                }
+                consultora.setNivel(nivelFinal);
                 consultoraRepository.save(consultora);
                 log.debug("Consultora guardada con ID: {}", consultora.getId());
             }

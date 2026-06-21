@@ -14,17 +14,29 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Capacitacion {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @Column(nullable = false, length = 150)
     private String titulo;
-    
+
     @Column(length = 500)
     private String descripcion;
 
     @Column
     private LocalDateTime fecha;
+
+    @Column
+    private Boolean activo = true;
+
+    @Column(name = "duracion_minutos")
+    private Integer duracionMinutos;
+
+    @Column(length = 50)
+    private String tipo;
+
+    @Column(name = "url_contenido", length = 500)
+    private String urlContenido;
 }
