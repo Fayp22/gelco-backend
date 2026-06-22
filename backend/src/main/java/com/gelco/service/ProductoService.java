@@ -173,7 +173,7 @@ public class ProductoService {
 
             for (Object[] row : resultados) {
                 Long productoId = (Long) row[0];
-                BigDecimal totalCantidad = (BigDecimal) row[1];
+                Long totalCantidad = (Long) row[1];
                 productoRepository.findById(productoId).ifPresent(producto -> {
                     masVendidos.add(new ProductoMasVendido(
                             producto.getId(),
@@ -199,7 +199,7 @@ public class ProductoService {
 
             for (Object[] row : resultados) {
                 Long productoId = (Long) row[0];
-                BigDecimal totalCantidad = (BigDecimal) row[1];
+                Long totalCantidad = (Long) row[1];
                 int cantidadVendida = totalCantidad.intValue();
 
                 productoRepository.findById(productoId).ifPresent(producto -> {
@@ -232,7 +232,7 @@ public class ProductoService {
             java.util.Map<Long, Integer> ventasMap = new java.util.HashMap<>();
             for (Object[] row : resultadosVentas) {
                 Long productoId = (Long) row[0];
-                BigDecimal totalCantidad = (BigDecimal) row[1];
+                Long totalCantidad = (Long) row[1];
                 ventasMap.put(productoId, totalCantidad.intValue());
             }
 
