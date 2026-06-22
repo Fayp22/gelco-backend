@@ -97,6 +97,19 @@ public class PedidoController {
         }
     }
 
+    // ── GET /pedidos/estado/{estado} ──────────────────────────────
+    @GetMapping("/estado/{estado}")
+    @Operation(summary = "Obtener pedidos filtrados por estado")
+    public ResponseEntity<?> getPedidosPorEstado(@PathVariable String estado) {
+        try {
+            return ResponseEntity.ok(pedidoService.getPedidosByEstado(estado));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(500, "Error al obtener pedidos", e.getMessage()));
+        }
+    }
+
+
     // ── POST /pedidos ─────────────────────────────────────────────
     @PostMapping
     @Operation(summary = "Registrar un nuevo pedido completo (HU06)",
