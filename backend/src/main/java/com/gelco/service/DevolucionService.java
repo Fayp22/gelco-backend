@@ -10,6 +10,8 @@ import com.gelco.repository.DetallePedidoRepository;
 import com.gelco.repository.DevolucionRepository;
 import com.gelco.repository.ProductoRepository;
 import com.gelco.repository.UsuarioRepository;
+import com.gelco.model.InventarioMovimiento;
+import com.gelco.repository.InventarioMovimientoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,7 @@ public class DevolucionService {
     private final DetallePedidoRepository detallePedidoRepository;
     private final ProductoRepository productoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final InventarioMovimientoRepository inventarioMovimientoRepository;
 
     @Transactional
     public DevolucionResponse crearDevolucion(Long usuarioId, CrearDevolucionRequest request) {
@@ -65,6 +68,12 @@ public class DevolucionService {
             Producto producto = detalle.getProducto();
             producto.setStock(producto.getStock() + request.getCantidad());
             productoRepository.save(producto);
+            InventarioMovimiento movimiento = new InventarioMovimiento();
+            movimiento.setProducto(producto);
+            movimiento.setTipo("DEVOLUCION");
+            movimiento.setCantidad(request.getCantidad());
+            movimiento.setFecha(LocalDateTime.now());
+            inventarioMovimientoRepository.save(movimiento);
         }
         // Si es "No apto", no se repone — el producto se pierde, pero el registro
         // queda igual para que el facturador ajuste la factura en otra HU.

@@ -8,6 +8,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.gelco.model.InventarioMovimiento;
+import com.gelco.repository.InventarioMovimientoRepository;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -19,6 +23,7 @@ import java.util.List;
 public class ProductoController {
 
     private final ProductoService productoService;
+    private final InventarioMovimientoRepository inventarioMovimientoRepository;
 
     @GetMapping
     public ResponseEntity<?> getAllProductos() {
@@ -170,6 +175,29 @@ public class ProductoController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse(500, "Error al obtener sugerencias de reposicion", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/inventario/movimientos")
+    public ResponseEntity<?> getMovimientos() {
+        try {
+            List<Map<String, Object>> result = inventarioMovimientoRepository.findAllWithProducto()
+                    .stream()
+                    .map(m -> {
+                        Map<String, Object> map = new java.util.HashMap<>();
+                        map.put("id",             m.getId());
+                        map.put("productoNombre", m.getProducto().getNombre());
+                        map.put("productoId",     m.getProducto().getId());
+                        map.put("tipo",           m.getTipo());
+                        map.put("cantidad",       m.getCantidad());
+                        map.put("fecha",          m.getFecha());
+                        return map;
+                    })
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(500, "Error al obtener movimientos", e.getMessage()));
         }
     }
 }
