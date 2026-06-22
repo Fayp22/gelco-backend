@@ -1,11 +1,14 @@
 package com.gelco.service;
 
 import com.gelco.dto.ProductoResponse;
+import com.gelco.model.Categoria;
 import com.gelco.model.Producto;
+import com.gelco.repository.CategoriaRepository;
 import com.gelco.repository.DetallePedidoRepository;
 import com.gelco.repository.ProductoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -19,6 +22,7 @@ import java.util.stream.Collectors;
 public class ProductoService {
 
     private final ProductoRepository productoRepository;
+    private final CategoriaRepository categoriaRepository;
     private final DetallePedidoRepository detallePedidoRepository;
 
     public List<ProductoResponse> getAllProductos() {
@@ -66,16 +70,23 @@ public class ProductoService {
         }
     }
 
-    // MODIFICADO: Ahora acepta imagenUrl
-    public ProductoResponse createProducto(String nombre, String descripcion, BigDecimal precio, Integer stock, String imagenUrl) {
+    @Transactional
+    public ProductoResponse createProducto(String nombre, String descripcion, BigDecimal precio, Integer stock, Long categoriaId, String imagenUrl) {
         try {
             Producto producto = new Producto();
             producto.setNombre(nombre);
             producto.setDescripcion(descripcion);
             producto.setPrecio(precio);
             producto.setStock(stock);
-            producto.setImagenUrl(imagenUrl); // <--- AÑADIDO AQUÍ
+            producto.setImagenUrl(imagenUrl);
             producto.setActivo(true);
+            producto.setUpdatedAt(LocalDateTime.now());
+
+            if (categoriaId != null) {
+                Categoria categoria = categoriaRepository.findById(categoriaId)
+                        .orElseThrow(() -> new IllegalArgumentException("Categoría no encontrada"));
+                producto.setCategoria(categoria);
+            }
 
             Producto savedProducto = productoRepository.save(producto);
             return ProductoResponse.fromEntity(savedProducto);
@@ -84,8 +95,8 @@ public class ProductoService {
         }
     }
 
-    // MODIFICADO: Ahora acepta imagenUrl
-    public ProductoResponse updateProducto(Long id, String nombre, String descripcion, BigDecimal precio, Integer stock, boolean activo, String imagenUrl) {
+    @Transactional
+    public ProductoResponse updateProducto(Long id, String nombre, String descripcion, BigDecimal precio, Integer stock, boolean activo, Long categoriaId, String imagenUrl) {
         try {
             Producto producto = productoRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
@@ -94,8 +105,14 @@ public class ProductoService {
             if (descripcion != null) producto.setDescripcion(descripcion);
             if (precio != null) producto.setPrecio(precio);
             if (stock != null) producto.setStock(stock);
-            if (imagenUrl != null) producto.setImagenUrl(imagenUrl); // <--- AÑADIDO AQUÍ
+            if (imagenUrl != null) producto.setImagenUrl(imagenUrl);
+            if (categoriaId != null) {
+                Categoria categoria = categoriaRepository.findById(categoriaId)
+                        .orElseThrow(() -> new IllegalArgumentException("Categoría no encontrada"));
+                producto.setCategoria(categoria);
+            }
             producto.setActivo(activo);
+            producto.setUpdatedAt(LocalDateTime.now());
 
             Producto updatedProducto = productoRepository.save(producto);
             return ProductoResponse.fromEntity(updatedProducto);

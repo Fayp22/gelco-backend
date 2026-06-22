@@ -75,11 +75,16 @@ public class ProductoController {
             @RequestParam(required = false) String descripcion,
             @RequestParam BigDecimal precio,
             @RequestParam(defaultValue = "0") Integer stock,
-            @RequestParam(required = false) String imagenUrl) { // <--- AÑADIDO AQUÍ
+            @RequestParam(required = false) Long categoriaId,
+            @RequestParam(required = false) String imagenUrl) {
         try {
-            ProductoResponse producto = productoService.createProducto(nombre, descripcion, precio, stock, imagenUrl);
+            System.out.println("[DEBUG] POST /productos - nombre=" + nombre + ", precio=" + precio + ", stock=" + stock + ", categoriaId=" + categoriaId);
+            ProductoResponse producto = productoService.createProducto(nombre, descripcion, precio, stock, categoriaId, imagenUrl);
+            System.out.println("[DEBUG] Producto creado: " + producto.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(producto);
         } catch (Exception e) {
+            System.err.println("[ERROR] createProducto: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse(500, "Error al crear producto", e.getMessage()));
         }
@@ -93,14 +98,18 @@ public class ProductoController {
             @RequestParam(required = false) BigDecimal precio,
             @RequestParam(required = false) Integer stock,
             @RequestParam(defaultValue = "true") boolean activo,
-            @RequestParam(required = false) String imagenUrl) { // <--- AÑADIDO AQUÍ
+            @RequestParam(required = false) Long categoriaId,
+            @RequestParam(required = false) String imagenUrl) {
         try {
-            ProductoResponse producto = productoService.updateProducto(id, nombre, descripcion, precio, stock, activo, imagenUrl);
+            System.out.println("[DEBUG] PUT /productos/" + id + " - stock=" + stock + ", activo=" + activo + ", categoriaId=" + categoriaId);
+            ProductoResponse producto = productoService.updateProducto(id, nombre, descripcion, precio, stock, activo, categoriaId, imagenUrl);
+            System.out.println("[DEBUG] Producto actualizado: stock=" + producto.getStock());
             return ResponseEntity.ok(producto);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ErrorResponse(404, "Producto no encontrado", e.getMessage()));
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse(500, "Error al actualizar producto", e.getMessage()));
         }
