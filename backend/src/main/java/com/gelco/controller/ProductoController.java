@@ -43,6 +43,18 @@ public class ProductoController {
         }
     }
 
+    @GetMapping("/stock-bajo")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('DESPACHO')")
+    public ResponseEntity<?> getProductosConStockBajo() {
+        try {
+            List<ProductoResponse> productos = productoService.getProductosConStockBajo();
+            return ResponseEntity.ok(productos);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(500, "Error al obtener productos con stock bajo", e.getMessage()));
+        }
+    }
+
     @GetMapping("/buscar")
     @PreAuthorize("hasRole('CONSULTORA')")
     public ResponseEntity<?> buscarProductos(@RequestParam String nombre) {

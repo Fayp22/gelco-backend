@@ -101,6 +101,17 @@ public class ProductoService {
         }
     }
 
+    public List<ProductoResponse> getProductosConStockBajo() {
+        try {
+            return productoRepository.findByStockLessThanEqualAndActivoTrue(5)
+                    .stream()
+                    .map(ProductoResponse::fromEntity)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Error al obtener productos con stock bajo: " + e.getMessage());
+        }
+    }
+
     public void deleteProducto(Long id) {
         try {
             Producto producto = productoRepository.findById(id)
