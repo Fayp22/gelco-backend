@@ -122,18 +122,23 @@ public class AuthService {
             Usuario savedUsuario = usuarioRepository.save(usuario);
             log.debug("Usuario guardado con ID: {}", savedUsuario.getId());
 
+            // --- INICIO DE CAMBIOS DE TOKEN ---
             String token = jwtUtil.generateToken(savedUsuario.getEmail(), savedUsuario.getNombre(), perfil.getNombre(), savedUsuario.getId());
-            log.debug("Token generado para usuario: {}", savedUsuario.getEmail());
+            String refreshToken = jwtUtil.generateRefreshToken(savedUsuario.getEmail(), savedUsuario.getId()); // ← NUEVO
+
+            log.debug("Tokens generados para usuario: {}", savedUsuario.getEmail());
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Usuario registrado exitosamente");
             response.put("token", token);
+            response.put("refreshToken", refreshToken); // ← NUEVO
             response.put("usuario", Map.of(
                     "id", savedUsuario.getId(),
                     "email", savedUsuario.getEmail(),
                     "nombre", savedUsuario.getNombre(),
                     "perfil", perfil.getNombre()
             ));
+            // --- FIN DE CAMBIOS DE TOKEN ---
 
             if ("CONSULTORA".equals(perfilNombre)) {
                 Consultora consultora = new Consultora();
@@ -192,15 +197,21 @@ public class AuthService {
                 throw new IllegalArgumentException("Email o contraseña incorrectos");
             }
 
-            String token = jwtUtil.generateToken(usuario.getEmail(), usuario.getNombre(), usuario.getPerfil().getNombre(), usuario.getId());
+            String accessToken  = jwtUtil.generateToken(
+                    usuario.getEmail(), usuario.getNombre(),
+                    usuario.getPerfil().getNombre(), usuario.getId());
+
+            String refreshToken = jwtUtil.generateRefreshToken(
+                    usuario.getEmail(), usuario.getId());
 
             Map<String, Object> response = new HashMap<>();
-            response.put("token", token);
+            response.put("token", accessToken);
+            response.put("refreshToken", refreshToken);
             response.put("usuario", Map.of(
-                    "id", usuario.getId(),
-                    "email", usuario.getEmail(),
-                    "nombre", usuario.getNombre(),
-                    "perfil", usuario.getPerfil().getNombre()
+                    "id",      usuario.getId(),
+                    "email",   usuario.getEmail(),
+                    "nombre",  usuario.getNombre(),
+                    "perfil",  usuario.getPerfil().getNombre()
             ));
             return response;
         } catch (IllegalArgumentException e) {
@@ -231,35 +242,60 @@ public class AuthService {
         }
     }
 
-    public Map<String, Object> refreshToken(String token) {
+    public Map<String, Object> refreshToken(String refreshToken) {
         try {
-            if (!jwtUtil.isTokenValid(token)) {
-                throw new IllegalArgumentException("Token inválido o expirado");
+            if (refreshToken == null || refreshToken.isBlank()) {
+                throw new IllegalArgumentException("El refresh token es obligatorio");
             }
 
-            String jti = jwtUtil.getJtiFromToken(token);
+            if (!jwtUtil.isTokenValid(refreshToken)) {
+                throw new IllegalArgumentException("Refresh token inválido o expirado");
+            }
+
+            if (!jwtUtil.isRefreshToken(refreshToken)) {
+                throw new IllegalArgumentException("El token proporcionado no es un refresh token");
+            }
+
+            String jti = jwtUtil.getJtiFromToken(refreshToken);
             if (tokenBlacklistRepository.existsByTokenJti(jti)) {
-                throw new IllegalArgumentException("Token revocado");
+                throw new IllegalArgumentException("Refresh token revocado");
             }
 
-            String email = jwtUtil.getUsernameFromToken(token);
-            String nombre = jwtUtil.getNombreFromToken(token);
-            String perfil = jwtUtil.getPerfilFromToken(token);
-            Long usuarioId = jwtUtil.getUsuarioIdFromToken(token);
+            String email     = jwtUtil.getUsernameFromToken(refreshToken);
+            Long usuarioId   = jwtUtil.getUsuarioIdFromToken(refreshToken);
 
+            // Invalidar el refresh token usado
             TokenBlacklist blacklistEntry = TokenBlacklist.builder()
                     .tokenJti(jti)
                     .email(email)
                     .revocadoEn(LocalDateTime.now())
-                    .expiracion(jwtUtil.getExpirationFromToken(token).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime())
+                    .expiracion(jwtUtil.getExpirationFromToken(refreshToken)
+                            .toInstant()
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .toLocalDateTime())
                     .build();
             tokenBlacklistRepository.save(blacklistEntry);
 
-            String newToken = jwtUtil.generateToken(email, nombre, perfil, usuarioId);
+            // Buscar usuario para obtener datos actuales
+            Usuario usuario = usuarioRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+            if (!usuario.getEstado()) {
+                throw new IllegalArgumentException("Usuario inactivo");
+            }
+
+            // Generar nuevos tokens
+            String newAccessToken  = jwtUtil.generateToken(
+                    usuario.getEmail(), usuario.getNombre(),
+                    usuario.getPerfil().getNombre(), usuario.getId());
+
+            String newRefreshToken = jwtUtil.generateRefreshToken(
+                    usuario.getEmail(), usuario.getId());
 
             Map<String, Object> response = new HashMap<>();
-            response.put("token", newToken);
-            response.put("message", "Token renovado exitosamente");
+            response.put("token", newAccessToken);
+            response.put("refreshToken", newRefreshToken);
+            response.put("message", "Tokens renovados exitosamente");
             return response;
         } catch (IllegalArgumentException e) {
             throw e;

@@ -22,7 +22,7 @@ public class AuthController {
 
     public record RegisterRequest(String email, String password, String nombre, String perfil, String nivel) {}
 
-    public record RefreshTokenRequest(String token) {}
+    public record RefreshTokenRequest(String refreshToken) {}
 
     public record ForgotPasswordRequest(String email) {}
 
@@ -110,7 +110,11 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest request) {
         try {
-            Map<String, Object> response = authService.refreshToken(request.token());
+            if (request.refreshToken() == null || request.refreshToken().isBlank()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ErrorResponse(400, "Token requerido", "El refreshToken es obligatorio"));
+            }
+            Map<String, Object> response = authService.refreshToken(request.refreshToken());
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
