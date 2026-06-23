@@ -25,7 +25,7 @@ public class VentaConsultoraService {
     }
 
     public Map<String, Object> getVentasByConsultoraAndMonth(Long consultoraId, Integer mes, Integer anio) {
-        List<VentaConsultora> ventas = ventaConsultoraRepository.findByConsultoraIdAndMesAndAnio(consultoraId, mes, anio);
+        List<VentaConsultora> ventas = ventaConsultoraRepository.buscarVentasPorConsultoraYMes(consultoraId, mes, anio);
 
         BigDecimal totalVentas = ventas.stream()
                 .map(VentaConsultora::getTotalVentas)

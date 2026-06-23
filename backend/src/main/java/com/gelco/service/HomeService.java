@@ -1,6 +1,7 @@
 package com.gelco.service;
 
 import com.gelco.model.Consultora;
+import com.gelco.model.Usuario;
 import com.gelco.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class HomeService {
     private final ClienteRepository clienteRepository;
     private final RutaRepository rutaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final PerfilRepository perfilRepository;
 
     public Map<String, Object> getPublicHome() {
         Map<String, Object> home = new HashMap<>();
@@ -53,7 +55,7 @@ public class HomeService {
         long capacitacionesCompletadas = capacitacionConsultoraRepository.countByConsultoraIdAndCompletado(consultoraId, true);
 
         LocalDate now = LocalDate.now();
-        List<com.gelco.model.VentaConsultora> ventasMes = ventaConsultoraRepository.findByConsultoraIdAndMesAndAnio(
+        List<com.gelco.model.VentaConsultora> ventasMes = ventaConsultoraRepository.buscarVentasPorConsultoraYMes(
                 consultoraId, now.getMonthValue(), now.getYear());
 
         BigDecimal ventasDelMes = ventasMes.stream()
@@ -96,6 +98,54 @@ public class HomeService {
         home.put("pedidosEnCamino", pedidosEnCamino);
         home.put("pedidosEntregados", pedidosEntregados);
         home.put("totalRutas", totalRutas);
+
+        return home;
+    }
+
+    public Map<String, Object> getRrhhHome() {
+        Map<String, Object> home = new HashMap<>();
+
+        List<Usuario> consultoras = usuarioRepository.findByPerfilNombre("CONSULTORA");
+        long totalConsultoras = consultoras.size();
+        long activas = consultoras.stream().filter(u -> u.getEstado() == null || u.getEstado()).count();
+        long inactivas = totalConsultoras - activas;
+
+        long capacitacionesPendientes = 0;
+        long capacitacionesCompletadas = 0;
+        for (Usuario u : consultoras) {
+            try {
+                Consultora c = consultoraRepository.findByUsuarioId(u.getId()).orElse(null);
+                if (c != null) {
+                    capacitacionesPendientes += capacitacionConsultoraRepository.countByConsultoraIdAndCompletado(c.getId(), false);
+                    capacitacionesCompletadas += capacitacionConsultoraRepository.countByConsultoraIdAndCompletado(c.getId(), true);
+                }
+            } catch (Exception ignored) {}
+        }
+
+        BigDecimal ventasTotales = consultoras.stream()
+                .map(u -> {
+                    try {
+                        Consultora c = consultoraRepository.findByUsuarioId(u.getId()).orElse(null);
+                        return c != null ? c.getVentasTotales() : BigDecimal.ZERO;
+                    } catch (Exception e) {
+                        return BigDecimal.ZERO;
+                    }
+                })
+                .filter(v -> v != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal ventasPromedio = totalConsultoras > 0
+                ? ventasTotales.divide(BigDecimal.valueOf(totalConsultoras), 2, java.math.RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        home.put("perfil", "RECURSOS_HUMANOS");
+        home.put("totalConsultoras", totalConsultoras);
+        home.put("activas", activas);
+        home.put("inactivas", inactivas);
+        home.put("totalVentas", ventasTotales);
+        home.put("ventasPromedio", ventasPromedio);
+        home.put("capacitacionesPendientes", capacitacionesPendientes);
+        home.put("capacitacionesCompletadas", capacitacionesCompletadas);
 
         return home;
     }

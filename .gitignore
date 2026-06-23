@@ -11,7 +11,7 @@
 # Seguridad
 .env
 
-# Carpetas de compilación (Basura que no debe subirse)
+# Carpetas de compilación
 target/
 out/
 build/

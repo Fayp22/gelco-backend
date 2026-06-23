@@ -105,4 +105,35 @@ public class JwtUtil {
     public Date getExpirationFromToken(String token) {
         return getAllClaims(token).getExpiration();
     }
+
+    @Value("${jwt.refresh-expiration:604800000}") // 7 días por defecto
+    private long jwtRefreshExpiration;
+
+    public String generateRefreshToken(String email, Long usuarioId) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("usuarioId", usuarioId);
+        claims.put("jti", UUID.randomUUID().toString());
+        claims.put("type", "refresh");
+
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtRefreshExpiration);
+
+        return Jwts.builder()
+                .claims(claims)
+                .subject(email)
+                .id((String) claims.get("jti"))
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    public boolean isRefreshToken(String token) {
+        try {
+            Object type = getAllClaims(token).get("type");
+            return "refresh".equals(type);
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

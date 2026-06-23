@@ -40,7 +40,7 @@ public class Producto {
 
     // Aquí van las relaciones con otras tablas
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "categoria_id")
+    @JoinColumn(name = "categoria_id", nullable = true)
     private Categoria categoria;
 
     @ManyToOne(fetch = FetchType.LAZY)

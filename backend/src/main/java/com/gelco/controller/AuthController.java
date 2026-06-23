@@ -20,9 +20,9 @@ public class AuthController {
 
     public record LoginRequest(String email, String password) {}
 
-    public record RegisterRequest(String email, String password, String nombre, String perfil) {}
+    public record RegisterRequest(String email, String password, String nombre, String perfil, String nivel) {}
 
-    public record RefreshTokenRequest(String token) {}
+    public record RefreshTokenRequest(String refreshToken) {}
 
     public record ForgotPasswordRequest(String email) {}
 
@@ -38,7 +38,7 @@ public class AuthController {
                     : "CONSULTORA";
             Map<String, Object> response = authService.register(
                     request.email(), request.password(), request.nombre(), perfil,
-                    null, null, null, null);
+                    null, null, null, request.nivel(), null);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -55,6 +55,7 @@ public class AuthController {
             @RequestParam String password,
             @RequestParam String nombre,
             @RequestParam(required = false) String perfil,
+            @RequestParam(required = false) String nivel,
             @RequestParam(required = false) String dni,
             @RequestParam(required = false) String telefono,
             @RequestParam(required = false) String direccion,
@@ -63,7 +64,7 @@ public class AuthController {
             String perfilFinal = (perfil != null && !perfil.isBlank()) ? perfil : "CONSULTORA";
             Map<String, Object> response = authService.register(
                     email, password, nombre, perfilFinal,
-                    dni, telefono, direccion, foto);
+                    dni, telefono, direccion, nivel, foto);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -109,7 +110,11 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest request) {
         try {
-            Map<String, Object> response = authService.refreshToken(request.token());
+            if (request.refreshToken() == null || request.refreshToken().isBlank()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ErrorResponse(400, "Token requerido", "El refreshToken es obligatorio"));
+            }
+            Map<String, Object> response = authService.refreshToken(request.refreshToken());
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

@@ -50,6 +50,7 @@ public class HomeController {
                 case "ADMIN" -> homeService.getAdminHome();
                 case "CONSULTORA" -> homeService.getConsultoraHome(usuarioId);
                 case "DISTRIBUIDOR" -> homeService.getDistribuidorHome();
+                case "RECURSOS_HUMANOS" -> homeService.getRrhhHome();
                 default -> homeService.getPublicHome();
             };
 
